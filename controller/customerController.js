@@ -15,7 +15,7 @@ const findAll = async (req, res) => {
 
 // Save user function
 const save = async (req, res) => {
-    const { username, full_name, email, role, password } = req.body;
+    const { username, full_name, email, contact_no, address, role, password } = req.body;
 
     try {
         // Validate required fields
@@ -51,7 +51,9 @@ const save = async (req, res) => {
             username,
             full_name,
             email,
+            contact_no,
             role: role || "User",
+            address,
             image: req.file.filename,
         });
         await customer.save();
@@ -77,7 +79,6 @@ const save = async (req, res) => {
                 <p>Your account has been created successfully. Here are your details:</p>
                 <ul>
                     <li><strong>Username:</strong> ${customer.username}</li>
-                    <li><strong>Email:</strong> ${customer.email}</li>
                     <li><strong>Role:</strong> ${customer.role}</li>
                 </ul>
                 <p>Thank you for joining us!</p>
@@ -94,8 +95,8 @@ const save = async (req, res) => {
 // Find By id function
 const findById = async (req, res) => {
     try {
-        const customers = await Customer.findById(req.params.id);
-        res.status(200).json(customers);
+        const customer = await Customer.findById(req.params.id);
+        res.status(200).json(customer);
     } catch (e) {
         res.json(e);
     }
@@ -128,17 +129,15 @@ const deleteById = async (req, res) => {
 // Update info function
 const update = async (req, res) => {
     try {
-        const { role, image, username, full_name, email } = req.body;
+        const { role, image, ...otherUpdates } = req.body;
 
         // Find and update customer, ensuring role and image are handled properly
         const customer = await Customer.findByIdAndUpdate(
             req.params.id,
             {
-                username,
-                full_name,
-                email,
+                ...otherUpdates,
                 role: role || "User",
-                image: image || null,
+                image: req.file ? req.file.filename : image || null,
             },
             { new: true }
         );
@@ -150,7 +149,7 @@ const update = async (req, res) => {
         // Update the related credential document
         const cred = await Credential.findOneAndUpdate(
             { _id: customer._id },
-            { username, role: role || "User" },
+            req.body,
             { new: true }
         );
 
@@ -181,6 +180,7 @@ const update = async (req, res) => {
                     <li><strong>Username:</strong> ${customer.username}</li>
                     <li><strong>Email:</strong> ${customer.email}</li>
                     <li><strong>Role:</strong> ${customer.role}</li>
+                    ${customer.image ? `<li><strong>Profile Image:</strong> ${customer.image}</li>` : ''}
                 </ul>
                 <p>If you did not request these changes, please contact our support team immediately.</p>
             `,
@@ -197,20 +197,20 @@ const update = async (req, res) => {
 const getAndUpdate = async (req, res) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
 
+        // Find the customer
         const customer = await Customer.findById(id);
         if (!customer) {
             return res.status(404).json({ message: "Customer not found" });
         }
 
-        // If no updates provided, just return the customer data
-        if (!updates || Object.keys(updates).length === 0) {
+        // Handle GET request (no updates provided)
+        if (!req.body || (!req.file && Object.keys(req.body).length === 0)) {
             return res.status(200).json(customer);
         }
 
         // Validate and handle updates
-        const { username, full_name, email, role, image } = updates;
+        const { username, full_name, email } = req.body;
 
         // Check if username is being updated and already exists
         if (username && username !== customer.username) {
@@ -225,8 +225,8 @@ const getAndUpdate = async (req, res) => {
             username: username || customer.username,
             full_name: full_name || customer.full_name,
             email: email || customer.email,
-            role: role || customer.role,
-            image: image || customer.image,
+            role: customer.role, // Preserve existing role
+            image: req.file ? req.file.filename : customer.image,
         };
 
         // Update Customer document
@@ -294,7 +294,7 @@ const getAndUpdate = async (req, res) => {
     }
 };
 
-// Get total customer count
+// New: Get total customer count
 const getCustomerCount = async (req, res) => {
     try {
         const count = await Customer.countDocuments();

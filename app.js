@@ -6,6 +6,7 @@ const CustomerRouter = require("./routes/customerRoute");
 const AuthRouter = require("./routes/authRoute");
 const MovieRouter = require("./routes/movieRoute");
 const ShowtimeRouter = require("./routes/showtimeRoute");
+const BookingRouter = require("./routes/bookingRoute");
 
 const app = express();
 connectDb();
@@ -24,6 +25,7 @@ app.use("/api/customer", CustomerRouter);
 app.use("/api/auth", AuthRouter);
 app.use("/api/movies", MovieRouter);
 app.use("/api/showtimes", ShowtimeRouter);
+app.use("/api/bookings", BookingRouter);
 
 // static files
 app.use("/profilePicture", express.static("public/profilePicture"));

@@ -50,9 +50,11 @@ const createBooking = async (req, res) => {
     await newBooking.save();
     res.status(201).json({ message: "Booking created successfully", booking: newBooking });
   } catch (error) {
+    console.error("Error creating booking:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Get all bookings
 const getAllBookings = async (req, res) => {
