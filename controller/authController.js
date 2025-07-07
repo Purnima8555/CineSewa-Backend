@@ -5,6 +5,7 @@ const Customer = require("../model/customer");
 const nodemailer = require("nodemailer");
 const PasswordReset = require('../model/passwordReset');
 const upload = require("../middleware/uploads");
+const { createNotification } = require("./notificationController");
 
 const SECRET_KEY = "21e6fb393716f568bf5ab155f62379812ac5b048efdea976aa1b1699f9e7e7dd";
 
@@ -76,7 +77,7 @@ const register = async (req, res) => {
     }
 };
 
-// Login function
+// Modified login function
 const login = async (req, res) => {
     const { username, password } = req.body;
 
@@ -98,6 +99,16 @@ const login = async (req, res) => {
             { userId: cred._id, username: cred.username, role: cred.role },
             SECRET_KEY,
             { expiresIn: '1d' }
+        );
+
+        // Create login notification
+        const loginTime = new Date().toLocaleString();
+        const notificationMessage = `You logged in successfully on ${loginTime}. If this wasn't you, please secure your account immediately.`;
+        
+        await createNotification(
+            customer._id,
+            null, // No booking ID for login notifications
+            notificationMessage
         );
 
         // Include userId in the response
@@ -274,7 +285,21 @@ const resetPassword = async (req, res) => {
             `
         });
 
-        res.status(200).json({ message: "Password updated successfully and email notification sent." });
+        // Create in-app notification
+        const resetTime = new Date().toLocaleString();
+        const notificationMessage = `Your password was reset on ${resetTime}. If you didn't request this change, please secure your account immediately.`;
+        
+        await createNotification(
+            resetEntry.userId,
+            null, // No booking ID for password reset notifications
+            notificationMessage,
+            "security" // Notification type
+        );
+
+        res.status(200).json({ 
+            message: "Password updated successfully. Notifications have been sent.",
+            userId: resetEntry.userId
+        });
     } catch (err) {
         console.error("Error resetting password:", err);
         res.status(500).json({ message: "Error resetting password", error: err });

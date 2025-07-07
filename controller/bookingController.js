@@ -1,5 +1,7 @@
 const Booking = require("../model/booking");
 const Showtime = require("../model/showtime");
+const Notification = require("../model/notification");
+const { createNotification } = require("./notificationController");
 
 // Create a new booking
 const createBooking = async (req, res) => {
@@ -7,7 +9,7 @@ const createBooking = async (req, res) => {
     const { userId, movieId, showtimeId, seats, format, totalPrice, paymentMethod } = req.body;
 
     // Validate showtime exists
-    const showtime = await Showtime.findById(showtimeId);
+    const showtime = await Showtime.findById(showtimeId).populate("movieId");
     if (!showtime) {
       return res.status(404).json({ message: "Showtime not found" });
     }
@@ -48,7 +50,22 @@ const createBooking = async (req, res) => {
     });
 
     await newBooking.save();
-    res.status(201).json({ message: "Booking created successfully", booking: newBooking });
+
+    // Create notification
+    const movieTitle = showtime.movieId.title;
+    const showtimeDate = new Date(showtime.startTime).toLocaleString();
+    const notificationMessage = `Your booking for ${movieTitle} on ${showtimeDate} (${format}) was successful. Seats: ${seats.join(", ")}. Total: NPR ${totalPrice}`;
+
+    await createNotification(
+      userId,
+      newBooking._id,
+      notificationMessage
+    );
+
+    res.status(201).json({ 
+      message: "Booking created successfully", 
+      booking: newBooking 
+    });
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ error: error.message });
