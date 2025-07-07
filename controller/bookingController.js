@@ -72,7 +72,6 @@ const createBooking = async (req, res) => {
   }
 };
 
-
 // Get all bookings
 const getAllBookings = async (req, res) => {
   try {
@@ -80,6 +79,38 @@ const getAllBookings = async (req, res) => {
     res.json({ message: "Bookings retrieved successfully", bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// In your bookingController.js
+const getAllBookingsByUserId = async (req, res) => {
+  console.log("\n=== Booking Controller ===");
+  console.log("Params:", req.params);
+  console.log("Headers:", req.headers);
+  console.log("Request received at:", new Date());
+  
+  try {
+    const { userId } = req.params;
+    console.log("Searching bookings for user ID:", userId);
+    
+    const bookings = await Booking.find({ userId })
+      .populate("movieId")
+      .populate("showtimeId");
+    
+    console.log(`Found ${bookings.length} bookings`);
+    console.log("Sample booking:", bookings[0]);
+    
+    res.json({ 
+      success: true,
+      message: "Bookings retrieved successfully", 
+      bookings 
+    });
+  } catch (error) {
+    console.error("Controller error:", error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
 
@@ -114,6 +145,7 @@ const deleteBooking = async (req, res) => {
 module.exports = {
   createBooking,
   getAllBookings,
+  getAllBookingsByUserId,
   getBookingById,
   deleteBooking
 };
