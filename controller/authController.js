@@ -291,7 +291,7 @@ const resetPassword = async (req, res) => {
         
         await createNotification(
             resetEntry.userId,
-            null, // No booking ID for password reset notifications
+            null,
             notificationMessage,
             "security" // Notification type
         );

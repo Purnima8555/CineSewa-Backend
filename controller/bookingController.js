@@ -2,15 +2,29 @@ const Booking = require("../model/booking");
 const Showtime = require("../model/showtime");
 const Notification = require("../model/notification");
 const { createNotification } = require("./notificationController");
+const Customer = require("../model/customer");
+const QRCode = require("qrcode");
+const nodemailer = require("nodemailer");
 
 // Create a new booking
 const createBooking = async (req, res) => {
   try {
     const { userId, movieId, showtimeId, seats, format, totalPrice, paymentMethod } = req.body;
 
+    console.log("Received booking request with data:", {
+      userId,
+      movieId,
+      showtimeId,
+      seats,
+      format,
+      totalPrice,
+      paymentMethod
+    });
+
     // Validate showtime exists
     const showtime = await Showtime.findById(showtimeId).populate("movieId");
     if (!showtime) {
+      console.error("Showtime not found for ID:", showtimeId);
       return res.status(404).json({ message: "Showtime not found" });
     }
 
@@ -21,6 +35,7 @@ const createBooking = async (req, res) => {
     });
 
     if (unavailableSeats.length > 0) {
+      console.error("Some selected seats are not available:", unavailableSeats);
       return res.status(400).json({
         message: "Some selected seats are not available",
         unavailableSeats
@@ -51,6 +66,8 @@ const createBooking = async (req, res) => {
 
     await newBooking.save();
 
+    console.log("Booking created successfully:", newBooking);
+
     // Create notification
     const movieTitle = showtime.movieId.title;
     const showtimeDate = new Date(showtime.startTime).toLocaleString();
@@ -61,6 +78,53 @@ const createBooking = async (req, res) => {
       newBooking._id,
       notificationMessage
     );
+
+    // Generate QR Code
+    const qrCodeData = `Booking ID: ${newBooking._id}\nMovie: ${movieTitle}\nShowtime: ${showtimeDate}\nSeats: ${seats.join(", ")}\nTotal: NPR ${totalPrice}`;
+    const qrCodeImage = await QRCode.toDataURL(qrCodeData);
+
+    // Send Email
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: "rpurnima8555@gmail.com",
+        pass: "kwvuyzwguvdohwzu",
+      }
+    });
+
+    const customer = await Customer.findById(userId);
+
+    const mailOptions = {
+      from: "rpurnima8555@gmail.com",
+      to: customer.email,
+      subject: 'Your Movie Booking Confirmation',
+      text: notificationMessage,
+      html: `
+        <h1>Booking Confirmation</h1>
+        <p>${notificationMessage}</p>
+        <p><strong>Transaction Method:</strong> ${paymentMethod}</p>
+        <p><strong>Important Instructions:</strong> Please arrive 15 minutes before the showtime. Present this QR code at the entrance.</p>
+        <img src="cid:qrCode" />
+      `,
+      attachments: [
+        {
+          filename: 'ticket.png',
+          content: qrCodeImage,
+          cid: 'qrCode'
+        }
+      ]
+    };
+
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Email sent:', info.response);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      // Optionally, you can return a response indicating the booking was successful but the email failed
+      // return res.status(201).json({ message: "Booking created successfully, but email sending failed" });
+    }
 
     res.status(201).json({ 
       message: "Booking created successfully", 
@@ -142,10 +206,22 @@ const deleteBooking = async (req, res) => {
   }
 };
 
+// bookingController.js
+const getBookingCount = async (req, res) => {
+  try {
+    const count = await Booking.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    console.error("Error getting booking count:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   createBooking,
   getAllBookings,
   getAllBookingsByUserId,
   getBookingById,
-  deleteBooking
+  deleteBooking,
+  getBookingCount,
 };

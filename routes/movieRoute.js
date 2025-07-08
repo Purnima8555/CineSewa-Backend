@@ -50,7 +50,7 @@ const upload = multer({
 });
 
 // Specific routes first
-router.get("/count", authenticateToken, getMovieCount);
+router.get("/count", getMovieCount);
 router.get("/", getAllMovies);
 router.get("/status/:status", getByStatus);
 router.get("/genre/:genre", getByGenre);
